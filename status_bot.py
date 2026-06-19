@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import os
 from threading import Thread
 from flask import Flask
+import re
 
 # =======================================================
 # CONFIGURATION (ตั้งค่าตรงนี้)
@@ -18,14 +19,14 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "<h1>Vereus X Status System v3 is Running Smoothly!</h1>", 200
+    return "<h1>Vereus X Status System v4 is Active!</h1>", 200
 
 def keep_alive():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
 def get_weao_scraped_status():
-    """ระบบคัดกรองขั้นสูง: หั่นครึ่งหน้าเว็บแยกตามแพลตฟอร์มเพื่อป้องกันสเตตัสซ้ำซ้อน"""
+    """ระบบค้นหาอัจฉริยะ V4: เจาะพิกัดรอบชื่อตัวรัน แยกแยะแพลตฟอร์มป้องกันชื่อซ้ำ"""
     categorized_executors = {
         "Windows": [],
         "Mac": [],
@@ -34,19 +35,29 @@ def get_weao_scraped_status():
         "External": []
     }
     
-    # คลังรายชื่อตัวรันชุดใหญ่ จัดเต็มครบทุกแพลตฟอร์มอัปเดตล่าสุด
+    # รายชื่อตัวรันทั้งหมดบนเว็บ weao.xyz แบ่งกลุ่มชัดเจน
     executors_config = {
-        "Windows": ["Wave", "Solara", "Celery", "Lunar", "Electron", "Nihon", "Incognito", "Swift", "Aimmy", "Krampus"],
-        "Mac": ["MacSploit", "Hydrogen", "Delta"],
-        "Android": ["Delta", "Codex", "Arceus X", "Vega X", "Evon", "Fluxus", "Hydrogen", "Kitten Exploits", "Cryptic", "Cubix"],
-        "iOS": ["Appleware", "Delta", "Codex", "SwiftSploit", "Hydrogen", "Flare"],
-        "External": ["Celestial", "Horizon", "Phantom", "Bloodhound", "Viper"]
+        "Windows": ["Wave", "Solara", "Celery", "Lunar", "Electron", "Nihon", "Incognito", "Swift"],
+        "Mac": ["MacSploit", "Hydrogen"],
+        "Android": ["Delta", "Codex", "Arceus X", "Vega X", "Evon", "Fluxus", "Hydrogen"],
+        "iOS": ["Appleware", "Delta", "Codex", "SwiftSploit", "Hydrogen"],
+        "External": ["Celestial", "Horizon"]
+    }
+    
+    # คีย์เวิร์ดอ้างอิงเพื่อใช้แยกแยะกรณีชื่อซ้ำกันข้ามแพลตฟอร์ม
+    platform_keywords = {
+        "Windows": ["windows", "pc", "win"],
+        "Mac": ["mac", "macos", "macsploit"],
+        "Android": ["android", "apk", "mobile"],
+        "iOS": ["ios", "apple", "ipa", "iphone"],
+        "External": ["external", "tool", "cheat"]
     }
     
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5'
         }
         response = requests.get(TARGET_URL, timeout=15, headers=headers)
         
@@ -55,46 +66,45 @@ def get_weao_scraped_status():
 
         html_content = response.text.lower()
         
-        # ✂️ ตัดแบ่งโซน HTML ออกเป็นชิ้นๆ ตามแพลตฟอร์ม เพื่อไม่ให้ชื่อซ้ำกันวิ่งไปชนกันเอง
-        idx_win = html_content.find("windows")
-        idx_mac = html_content.find("mac")
-        idx_and = html_content.find("android")
-        idx_ios = html_content.find("ios")
-        idx_ext = html_content.find("external")
-        
-        sections = {
-            "Windows": html_content[idx_win:idx_mac] if idx_win != -1 and idx_mac != -1 else html_content,
-            "Mac": html_content[idx_mac:idx_and] if idx_mac != -1 and idx_and != -1 else html_content,
-            "Android": html_content[idx_and:idx_ios] if idx_and != -1 and idx_ios != -1 else html_content,
-            "iOS": html_content[idx_ios:idx_ext] if idx_ios != -1 and idx_ext != -1 else html_content,
-            "External": html_content[idx_ext:] if idx_ext != -1 else html_content
-        }
-        
-        # ลูปค้นหาแยกตามโซนใครโซนมัน
         for platform, names in executors_config.items():
-            zone_html = sections[platform]
-            
             for name in names:
                 name_lower = name.lower()
                 
-                if name_lower in zone_html:
-                    start_idx = zone_html.find(name_lower)
-                    # ดึงเศษโค้ดรอบข้างชื่อตัวรันมาสแกน 400 ตัวอักษร (หน้า 200 หลัง 200)
-                    left_bound = max(0, start_idx - 200)
-                    right_bound = min(len(zone_html), start_idx + 200)
-                    snippet = zone_html[left_bound:right_bound]
+                # ค้นหาตำแหน่งทั้งหมดของชื่อนี้ในหน้าเว็บ (เช่น หาคำว่า Delta ทั้งหมดที่โผล่มา)
+                indices = [m.start() for m in re.finditer(re.escape(name_lower), html_content)]
+                
+                if not indices:
+                    # ถ้าไม่มีชื่อนี้อยู่บนหน้าเว็บเลย
+                    categorized_executors[platform].append(f"**{name}** : 🔴 Down")
+                    continue
+                
+                # คัดเลือกก้อนเนื้อหา HTML ที่ถูกต้องตามแพลตฟอร์มของมัน
+                chosen_snippet = ""
+                for idx in indices:
+                    left_bound = max(0, idx - 300)
+                    right_bound = min(len(html_content), idx + 300)
+                    current_snippet = html_content[left_bound:right_bound]
                     
-                    # 🟢 เช็คคำค้นหา + ดักคลาสสี (Green/Emerald/Lime) ของฝั่งที่ใช้งานได้
-                    if any(x in snippet for x in ["working", "online", "updated", "safe", "active", "green", "emerald", "lime", "text-green", "bg-green"]):
-                        status_str = "🟢 Working"
-                    # 🟠 เช็คคำค้นหา + ดักคลาสสี (Orange/Amber/Yellow) ของฝั่งที่โดนแพตช์/ปรับปรุง
-                    elif any(x in snippet for x in ["patched", "updating", "maintenance", "orange", "amber", "yellow", "text-orange", "text-amber"]):
-                        status_str = "🟠 Patched"
-                    # 🔴 นอกเหนือจากนั้น หรือขึ้นคลาสสีแดง/Rose ตีเป็นล่มทั้งหมด
-                    else:
-                        status_str = "🔴 Down"
+                    # เช็คว่าก้อน HTML รอบๆ ชื่อนี้ มีคำระบุแพลตฟอร์มของมันอยู่ด้วยไหม
+                    if any(kp in current_snippet for kp in platform_keywords[platform]):
+                        chosen_snippet = current_snippet
+                        break
+                
+                # ค่าเริ่มต้นหากไม่พบก้อนที่ตรงกับแพลตฟอร์ม ให้ดึงก้อนแรกสุดมาใช้
+                if not chosen_snippet:
+                    left_bound = max(0, indices[0] - 300)
+                    right_bound = min(len(html_content), indices[0] + 300)
+                    chosen_snippet = html_content[left_bound:right_bound]
+                
+                # 🎨 ตรวจจับคำสเตตัสและคลาสสีจากก้อนเนื้อหาที่คัดเลือกมา
+                working_keys = ["working", "online", "updated", "safe", "active", "operational", "🟢", "green", "emerald", "lime", "success", "text-green", "bg-green"]
+                patched_keys = ["patched", "updating", "maintenance", "🟠", "orange", "amber", "yellow", "warning", "text-orange", "text-amber"]
+                
+                if any(wk in chosen_snippet for wk in working_keys):
+                    status_str = "🟢 Working"
+                elif any(pk in chosen_snippet for pk in patched_keys):
+                    status_str = "🟠 Patched"
                 else:
-                    # ถ้าไม่มีชื่อนี้ในโซนแพลตฟอร์มนั้นๆ ให้ขึ้น Down ไว้ก่อน
                     status_str = "🔴 Down"
                     
                 categorized_executors[platform].append(f"**{name}** : {status_str}")
@@ -102,13 +112,13 @@ def get_weao_scraped_status():
         return "ONLINE", categorized_executors
 
     except Exception as e:
-        print(f"[{time.strftime('%X')}] เซิร์ฟเวอร์ขูดข้อมูลเกิดข้อผิดพลาด: {e}")
+        print(f"[{time.strftime('%X')}] บอทเกิดข้อผิดพลาดในการดึงข้อมูล: {e}")
         return "OFFLINE", categorized_executors
 
 def build_embed(web_status, categories):
     fields = []
     for platform, items in categories.items():
-        value_text = "\n".join(items) if items else "*กำลังโหลดข้อมูล...*"
+        value_text = "\n".join(items) if items else "*ไม่มีข้อมูลตัวรันในกลุ่มนี้*"
         fields.append({"name": f"💻 {platform} Executors", "value": value_text, "inline": False})
 
     embed_color = 65280 if web_status == "ONLINE" else 16711680
@@ -119,7 +129,7 @@ def build_embed(web_status, categories):
             {
                 "title": "🛡️ Executor Status by siw",
                 "description": f"**🌐 สถานะเว็บไซต์ (weao.xyz):** {'🟢 ONLINE' if web_status == 'ONLINE' else '🔴 OFFLINE'}\n\n"
-                               f"ระบบสแกนโค้ดและวิเคราะห์สถานะแบบเจาะลึกแยกแพลตฟอร์ม",
+                               f"ระบบสแกนวิเคราะห์โค้ดและดักจับคลาสสีหน้าเว็บโดยตรงแบบ Real-time",
                 "color": embed_color,
                 "fields": fields,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -133,7 +143,7 @@ def monitor_loop():
     message_id = None
     webhook_url_with_wait = WEBHOOK_URL + ("" if "?wait=true" in WEBHOOK_URL else "?wait=true")
     time.sleep(3)
-    print("=== ระบบสแกนจำแนกโซน (Zone-Scraping Monitor v3) เริ่มทำงาน ===")
+    print("=== ระบบสแกนพิกัดรอบทิศทาง (Smart-Window Scraping v4) เริ่มทำงาน ===")
 
     while True:
         web_status, categories = get_weao_scraped_status()
@@ -149,7 +159,7 @@ def monitor_loop():
                 edit_url = f"{clean_url}/messages/{message_id}"
                 response = requests.patch(edit_url, json=payload)
                 if response.status_code == 200:
-                    print(f"[{time.strftime('%X')}] อัปเดตข้อมูลตรงตามโซนเรียบร้อย")
+                    print(f"[{time.strftime('%X')}] อัปเดตสถานะตรงตามพิกัดหน้าเว็บเรียบร้อย")
                 elif response.status_code == 404:
                     message_id = None
         except Exception as e:
