@@ -137,13 +137,13 @@ def build_embed(api_status, categories):
             {
                 "title": "🛡️ Executor Status by siw",
                 "description": (
-                    f"**🌐 สถานะ WEAO API:** {status_label}\n\n"
-                    f"🟢 Working = ใช้งานได้ปกติ  |  🟠 Issues = มีปัญหาบางส่วน  |  🔴 Patched = ใช้ไม่ได้"
+                    f"**🌐 WEBSITE WEAO STATUS:** {status_label}\n\n"
+                    f"🟢 Working = UPDATE  |  🟠 Issues = WAITING FIX  |  🔴 Patched = DOWN"
                 ),
                 "color": embed_color,
                 "fields": fields,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "footer": {"text": f"{FOOTER_TEXT} | อัปเดตล่าสุด: {current_time_str}"}
+                "footer": {"text": f"{FOOTER_TEXT} | Last Updated: {current_time_str}"}
             }
         ]
     }
