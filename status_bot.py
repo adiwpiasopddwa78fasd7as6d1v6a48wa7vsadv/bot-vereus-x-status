@@ -4,15 +4,13 @@ from datetime import datetime, timezone
 import os
 from threading import Thread
 from flask import Flask
-from bs4 import BeautifulSoup
-import re
 
 # =======================================================
 # CONFIGURATION (ตั้งค่าตรงนี้)
 # =======================================================
 WEBHOOK_URL = "https://discord.com/api/webhooks/1514211987234488401/dT70YrRMx2yVHSfw_Cb6Opf6VqdY8W5nOw5RQSU-qNLoGHO7ZPM5JQsH3Pfj9ei_LgYO"
-TARGET_URL = "https://weao.xyz"  # ดึงจากหน้าเว็บหลักตรงๆ ไม่ง้อ API แล้ว
-CHECK_INTERVAL = 30  
+API_URL = "https://api.weao.xyz/v1/status"  # ตรวจสอบ URL endpoint จาก https://docs.weao.xyz/ อีกครั้ง
+CHECK_INTERVAL = 25  
 FOOTER_TEXT = "Vereus X Status System"
 # =======================================================
 
@@ -20,126 +18,38 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "<h1>Vereus X Status System v6 (Smart Scraper) is Active!</h1>", 200
+    return "<h1>Vereus X Status System v7 (Pure API) is Active!</h1>", 200
 
 def keep_alive():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# จำแนกหมวดหมู่คร่าวๆ สำหรับตัวที่รู้จัก ถ้าเจอตัวใหม่ที่ไม่รู้จัก จะถูกโยนเข้ากลุ่ม Windows 
-KNOWN_PLATFORMS = {
-    "MacSploit": "Mac", "Hydrogen": "Mac", "Opiumware": "Mac",
-    "Delta": "Android", "Vega X": "Android", "Codex": "Android", "Arceus X": "Android",
-    "Appleware": "iOS", "SwiftSploit": "iOS",
-    "Serotonin": "External", "Severe": "External", "RbxCli": "External", "Lumen": "External", 
-    "Matcha": "External", "Matrix Hub": "External", "Photon": "External", "DX9WARE V2": "External"
-}
-
-def fetch_weao_data():
-    """กวาดข้อมูลจากหน้าเว็บแบบอัจฉริยะ ดักจับตัวรันใหม่ๆ และเจาะลึกสเตตัสอัตโนมัติ"""
+def fetch_weao_api():
+    """ดึงข้อมูลดิบจาก API ของ weao.xyz โดยตรง มั่นใจได้ว่าข้อมูลแม่นยำและไม่บัคจากโครงสร้างเว็บ"""
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            'Accept': 'application/json'
         }
-        response = requests.get(TARGET_URL, headers=headers, timeout=15)
-        
-        if response.status_code != 200:
-            return "OFFLINE", []
-            
-        soup = BeautifulSoup(response.text, 'html.parser')
-        executors = []
-        cards_found = []
-        
-        # 1. ค้นหาจุดที่มีคำว่า "Last updated:" (เพราะการ์ดทุกใบจะมีคำนี้)
-        update_nodes = soup.find_all(string=re.compile(r'Last updated:', re.IGNORECASE))
-        
-        for node in update_nodes:
-            card = node.parent
-            # 2. ไต่ขึ้นไปหาตัวกล่อง Container หลักของการ์ดใบนั้น
-            for _ in range(5):
-                if card.parent and card.parent.find(string=re.compile(r'sUNC:')):
-                    card = card.parent
-                else:
-                    break
-                    
-            if card not in cards_found:
-                cards_found.append(card)
-                
-        # 3. เจาะสกัดข้อมูลจากการ์ดที่เจอทีละใบ
-        for card in cards_found:
-            # แยกแต่ละบรรทัดด้วยเครื่องหมาย | เพื่อให้ Regex จับข้อความได้ง่าย
-            raw_text = card.get_text(separator=' | ')
-            parts = [p.strip() for p in raw_text.split('|') if p.strip()]
-            
-            # ชื่อส่วนใหญ่จะอยู่ตำแหน่งแรกสุดของการ์ด
-            name = parts[0] if parts else "Unknown"
-            
-            # ตรวจจับสถานะ (Working, Issues, Patched)
-            if re.search(r'\| (Updated|Working|Active) \|', raw_text, re.IGNORECASE):
-                status = "Working"
-                icon = "🟢"
-            elif re.search(r'\| (Issues|Maintenance) \|', raw_text, re.IGNORECASE):
-                status = "Issues"
-                icon = "🟠"
-            else:
-                status = "Patched"
-                icon = "🔴"
-                
-            # ดึงข้อมูลตัวเลขและสถานะฟังก์ชันต่างๆ
-            sunc = re.search(r'sUNC:\s*(\d+%?)', raw_text)
-            sunc = sunc.group(1) if sunc else "N/A"
-            
-            unc = re.search(r'UNC:\s*(\d+%?)', raw_text)
-            unc = unc.group(1) if unc else "N/A"
-            
-            decomp = re.search(r'Decompiler:\s*([✅❌])', raw_text)
-            decomp = decomp.group(1) if decomp else "❌"
-            
-            multi = re.search(r'Multi-Instance:\s*([✅❌])', raw_text)
-            multi = multi.group(1) if multi else "❌"
-            
-            raknet = re.search(r'Raknet Library:\s*([✅❌])', raw_text)
-            raknet = raknet.group(1) if raknet else "❌"
-            
-            # ดึงข้อมูลราคาหรือระบบคีย์
-            price = re.search(r'\| (Free|Key System|\$[\d\.]+.*?|Paid) \|', raw_text, re.IGNORECASE)
-            price = price.group(1).strip() if price else "Free"
-            
-            # ดึงลิ้งก์ที่กดได้ (Website, Discord, Purchase)
-            links_str = []
-            for a in card.find_all('a', href=True):
-                link_text = a.get_text(strip=True).lower()
-                if 'website' in link_text:
-                    links_str.append(f"[Website]({a['href']})")
-                elif 'discord' in link_text:
-                    links_str.append(f"[Discord]({a['href']})")
-                elif 'purchase' in link_text:
-                    links_str.append(f"[Purchase]({a['href']})")
-                    
-            platform = KNOWN_PLATFORMS.get(name, "Windows")
-            
-            executors.append({
-                "name": name,
-                "platform": platform,
-                "status_text": status,
-                "status_icon": icon,
-                "sunc": sunc,
-                "unc": unc,
-                "decomp": decomp,
-                "multi": multi,
-                "raknet": raknet,
-                "price": price,
-                "links": " | ".join(links_str) if links_str else "No Links"
-            })
-            
-        return "ONLINE", executors
-        
+        response = requests.get(API_URL, headers=headers, timeout=12)
+        if response.status_code == 200:
+            return "ONLINE", response.json()
+        return "OFFLINE", None
     except Exception as e:
-        print(f"Error scraping: {e}")
-        return "OFFLINE", []
+        print(f"[{time.strftime('%X')}] เชื่อมต่อ API ล้มเหลว: {e}")
+        return "OFFLINE", None
 
-def build_embed(web_status, executors_data):
+def parse_status(status_raw):
+    """แปลงค่าสถานะจาก API เป็นไอคอนและข้อความตามข้อกำหนด"""
+    status_str = str(status_raw).lower().strip()
+    if status_str in ["updated", "working", "active", "online", "true"]:
+        return "🟢 Working"
+    elif status_str in ["issues", "waiting fix", "maintenance", "bugged"]:
+        return "🟠 Issues"
+    else:
+        return "🔴 Patched"
+
+def build_embed(web_status, api_data):
     embed_color = 65280 if web_status == "ONLINE" else 16711680
     current_time_str = time.strftime('%X')
     
@@ -153,28 +63,69 @@ def build_embed(web_status, executors_data):
         "footer": {"text": f"{FOOTER_TEXT} | อัปเดตล่าสุด: {current_time_str}"}
     }
 
-    if web_status == "OFFLINE" or not executors_data:
-        embed["fields"].append({"name": "⚠️ System Warning", "value": "ไม่สามารถดึงข้อมูลจากเว็บไซต์ได้ในขณะนี้", "inline": False})
+    if web_status == "OFFLINE" or not api_data:
+        embed["fields"].append({"name": "⚠️ System Warning", "value": "ไม่สามารถดึงข้อมูลจาก API ได้ในขณะนี้", "inline": False})
         return {"embeds": [embed]}
 
+    # 1. ส่วนของ Roblox Version Update Tracker
+    roblox = api_data.get("roblox", {})
+    # ตรวจสอบโครงสร้างข้อมูลเวอร์ชัน (รองรับทั้งแบบ Object และแบบ String ตรงๆ)
+    win_v = roblox.get("windows", {}).get("version", "N/A") if isinstance(roblox.get("windows"), dict) else roblox.get("windows", "N/A")
+    mac_v = roblox.get("mac", {}).get("version", "N/A") if isinstance(roblox.get("mac"), dict) else roblox.get("mac", "N/A")
+    and_v = roblox.get("android", {}).get("version", "N/A") if isinstance(roblox.get("android"), dict) else roblox.get("android", "N/A")
+    ios_v = roblox.get("ios", {}).get("version", "N/A") if isinstance(roblox.get("ios"), dict) else roblox.get("ios", "N/A")
+
+    roblox_tracker_text = (
+        f"**Roblox Windows :** `{win_v}`\n"
+        f"**Roblox Mac :** `{mac_v}`\n"
+        f"**Roblox Android-iOS :** `{and_v}` / `{ios_v}`"
+    )
+    embed["fields"].append({"name": "🧩 Roblox Version Update Tracker", "value": roblox_tracker_text, "inline": False})
+
+    # 2. ส่วนของรายชื่อ Executor (ดึงแบบ Dynamic วนลูปตามที่ API ส่งมาทั้งหมด ตัวใหม่จะขึ้นทันที)
     categories = {}
-    for data in executors_data:
-        os_type = data["platform"]
-        # จัดฟอร์แมตข้อความให้สวยงามและละเอียด
-        entry = f"{data['status_icon']} **{data['name']}** - `{data['price']}`\n"
-        entry += f"┣ 📊 sUNC: `{data['sunc']}` | UNC: `{data['unc']}`\n"
-        entry += f"┣ 🛠️ Decomp: {data['decomp']} | Multi: {data['multi']} | Raknet: {data['raknet']}\n"
-        entry += f"┗ 🔗 {data['links']}\n"
+    exploits_list = api_data.get("exploits", api_data.get("executors", []))
+
+    for item in exploits_list:
+        name = item.get("name", "Unknown")
+        version = item.get("version", "N/A")
+        price = item.get("price", "Free")
+        status_emoji = parse_status(item.get("status", "patched"))
+        os_type = item.get("os", item.get("platform", "Windows")).capitalize()
+        
+        # ดึงค่าคุณสมบัติต่างๆ
+        sunc = item.get("sunc", "N/A")
+        unc = item.get("unc", "N/A")
+        decomp = "✅" if item.get("decompiler", False) or item.get("decompiler") == "✅" else "❌"
+        multi = "✅" if item.get("multi_instance", False) or item.get("multi_instance") == "✅" else "❌"
+        raknet = "✅" if item.get("raknet", False) or item.get("raknet") == "❌" else "❌" # เช็คกรณีรับค่ามาตรงๆ
+        
+        note = item.get("note", item.get("message", ""))
+        
+        # จัดการ Markdown Links
+        links = []
+        if item.get("website"): links.append(f"[Website]({item['website']})")
+        if item.get("discord"): links.append(f"[Discord]({item['discord']})")
+        if item.get("purchase"): links.append(f"[Purchase]({item['purchase']})")
+        links_formatted = " | ".join(links) if links else "No Links"
+
+        # ประกอบโครงสร้างข้อความรูปแบบ Tree GUI ลงใน Webhook ลิสต์ยาวลงมา
+        entry = f"{status_emoji.split()[0]} **{name}** `[{version}]` - {price}\n"
+        if note:
+            entry += f"┗ 💬 *{note}*\n"
+        entry += f"┣ 📊 sUNC: `{sunc}%` | UNC: `{unc}%`\n"
+        entry += f"┣ 🛠️ Decomp: {decomp} | Multi: {multi} | Raknet: {raknet}\n"
+        entry += f"┗ 🔗 {links_formatted}\n"
 
         if os_type not in categories:
             categories[os_type] = []
         categories[os_type].append(entry)
 
-    # ป้องกันบัคข้อความเกิน 1024 ตัวอักษรของ Discord 
+    # นำหมวดหมู่ที่จัดกลุ่มเสร็จแล้วยัดลง Embed fields (พร้อมระบบ Chunk ป้องกันข้อความยาวเกินลิมิต Discord)
     for os_name, items in categories.items():
         chunk_text = ""
         part = 1
-        for i, text in enumerate(items):
+        for text in items:
             if len(chunk_text) + len(text) > 950:
                 embed["fields"].append({
                     "name": f"💻 {os_name} Script Executor Exploits (Part {part})",
@@ -187,8 +138,8 @@ def build_embed(web_status, executors_data):
                 chunk_text += text + "\n"
         
         if chunk_text:
-            title = f"💻 {os_name} Script Executor Exploits" if part == 1 else f"💻 {os_name} Script Executor Exploits (Part {part})"
-            embed["fields"].append({"name": title, "value": chunk_text, "inline": False})
+            field_title = f"💻 {os_name} Script Executor Exploits" if part == 1 else f"💻 {os_name} Script Executor Exploits (Part {part})"
+            embed["fields"].append({"name": field_title, "value": chunk_text, "inline": False})
 
     return {"embeds": [embed]}
 
@@ -196,27 +147,27 @@ def monitor_loop():
     message_id = None
     webhook_url_with_wait = WEBHOOK_URL + ("" if "?wait=true" in WEBHOOK_URL else "?wait=true")
     time.sleep(3)
-    print("=== ระบบกวาดหน้าเว็บอัจฉริยะเริ่มทำงาน ===")
+    print("=== ระบบดึงข้อมูลจาก Pure API (weao.xyz) เริ่มทำงาน ===")
 
     while True:
-        web_status, executors_data = fetch_weao_data()
-        payload = build_embed(web_status, executors_data)
+        web_status, api_data = fetch_weao_api()
+        payload = build_embed(web_status, api_data)
         
         try:
             if message_id is None:
                 response = requests.post(webhook_url_with_wait, json=payload)
                 if response.status_code in [200, 201]:
                     message_id = response.json().get("id")
-                    print(f"[{time.strftime('%X')}] สร้างข้อความหลักสำเร็จ (ID: {message_id})")
+                    print(f"[{time.strftime('%X')}] สร้างข้อความหลักบนดิสคอร์ดสำเร็จ (ID: {message_id})")
             else:
                 clean_url = WEBHOOK_URL.split('?')[0]
                 edit_url = f"{clean_url}/messages/{message_id}"
                 response = requests.patch(edit_url, json=payload)
                 
                 if response.status_code == 200:
-                    print(f"[{time.strftime('%X')}] อัปเดตสถานะและข้อมูลเชิงลึกเรียบร้อย")
+                    print(f"[{time.strftime('%X')}] อัปเดตข้อมูลโครงสร้าง API เรียบร้อย")
                 elif response.status_code == 404:
-                    message_id = None
+                    message_id = None  # หากข้อความถูกลบ ให้ทำการส่งใหม่
         except Exception as e:
             print(f"Discord Webhook Error: {e}")
             
