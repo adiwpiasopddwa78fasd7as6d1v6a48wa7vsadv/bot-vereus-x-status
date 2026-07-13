@@ -8,7 +8,7 @@ from flask import Flask
 # =======================================================
 # CONFIGURATION (ตั้งค่าตรงนี้)
 # =======================================================
-WEBHOOK_URL = "https://discord.com/api/webhooks/1514211987234488401/dT70YrRMx2yVHSfw_Cb6Opf6VqdY8W5nOw5RQSU-qNLoGHO7ZPM5JQsH3Pfj9ei_LgYO"
+WEBHOOK_URL = ""
 API_EXPLOITS = "https://weao.xyz/api/status/exploits"
 API_VERSIONS = "https://weao.xyz/api/versions/current"
 CHECK_INTERVAL = 25  
