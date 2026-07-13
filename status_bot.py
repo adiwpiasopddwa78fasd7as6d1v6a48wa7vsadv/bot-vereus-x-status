@@ -1,274 +1,177 @@
-const express = require('express');
-const app = express();
+import time
+import requests
+from datetime import datetime, timezone
+import os
+from threading import Thread
+from flask import Flask
 
-// =======================================================
-// CONFIGURATION (ตั้งค่าตรงนี้)
-// =======================================================
-const WEBHOOK_URL = "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"; // <-- ใส่ webhook ใหม่ตรงนี้
-const EXPLOIT_API_URL = "https://weao.xyz/api/status/exploits";
-const VERSION_API_URL = "https://weao.xyz/api/versions/current";
-const CHECK_INTERVAL = 60;          // แนะนำ >= 60 วิ กัน rate limit (429)
-const FOOTER_TEXT = "Vereus X Status System";
-// =======================================================
+# =======================================================
+# CONFIGURATION (ตั้งค่าตรงนี้)
+# =======================================================
+WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_URL_HERE"
+API_URL = "https://weao.xyz/api/status" # (ใส่ URL API ของเว็บ weao.xyz ที่ใช้ดึงข้อมูล JSON)
+CHECK_INTERVAL = 30  
+FOOTER_TEXT = "Vereus X Status System"
+# =======================================================
 
-// ── Web Server (Keep Alive) ─────────────────────────────────
-app.get('/', (req, res) => {
-    res.status(200).send("<h1>Vereus X Status System is Active!</h1>");
-});
+app = Flask('')
 
-function keepAlive() {
-    const port = process.env.PORT || 8080;
-    app.listen(port, () => {
-        console.log(`[Server] Web server is running on port ${port}`);
-    });
-}
+@app.route('/')
+def home():
+    return "<h1>Vereus X Status System v5 (Webhook Only) is Active!</h1>", 200
 
-// ── รายชื่อตายตัวตามหมวดหมู่ที่กำหนด ──────────────────────────
-const CATEGORY_LISTS = {
-    "Windows Script Executor Exploits": [
-        "Volt", "Potassium", "Wave", "Synapse Z", "Seliware",
-        "Madium", "Cosmic", "Velocity", "SirHurt", "Solara", "Xeno"
-    ],
-    "Mac Script Executor Exploits": [
-        "MacSploit", "Opiumware"
-    ],
-    "Android Script Executor Exploits": [
-        "Delta", "Vega X", "Codex"
-    ],
-    "iOS Script Executor Exploits": [
-        "Delta"
-    ],
-    "Windows External Exploits": [
-        "Serotonin", "Severe", "RbxCli", "Lumen", "Matcha",
-        "Matrix Hub", "Photon", "DX9WARE V2"
-    ],
-};
+def keep_alive():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
 
-const CATEGORY_PLATFORM = {
-    "Windows Script Executor Exploits": "Windows",
-    "Mac Script Executor Exploits": "Mac",
-    "Android Script Executor Exploits": "Android",
-    "iOS Script Executor Exploits": "iOS",
-    "Windows External Exploits": "Windows",
-};
-
-// ฟังก์ชันช่วยแสดงเวลา (เทียบเท่า time.strftime('%X'))
-const getTimeStr = () => new Date().toLocaleTimeString('en-GB');
-
-// ── ดึงสถานะ exploit ──────────────────────────────────────────
-async function fetchExploitData() {
-    try {
-        const response = await fetch(EXPLOIT_API_URL, {
-            headers: { "User-Agent": "WEAO-3PService" },
-            signal: AbortSignal.timeout(15000) // Timeout 15 วินาที
-        });
-
-        if (response.status === 429) {
-            console.log(`[${getTimeStr()}] โดน Rate Limit จาก WEAO Exploit API`);
-            return { status: "RATELIMIT", data: [] };
+def fetch_weao_api():
+    """ดึงข้อมูล JSON จาก API ของ weao.xyz โดยตรง (ดักจับตัวใหม่ได้อัตโนมัติ)"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        if (!response.ok) {
-            console.log(`[${getTimeStr()}] WEAO Exploit API ตอบกลับ status ${response.status}`);
-            return { status: "OFFLINE", data: [] };
-        }
+        # ดึงข้อมูลจาก API
+        response = requests.get(API_URL, timeout=15, headers=headers)
+        
+        if response.status_code == 200:
+            return "ONLINE", response.json()
+        else:
+            return "OFFLINE", None
+            
+    except Exception as e:
+        print(f"[{time.strftime('%X')}] บอทเกิดข้อผิดพลาดในการเชื่อมต่อ API: {e}")
+        return "OFFLINE", None
 
-        let data = await response.json();
-        if (data && !Array.isArray(data)) {
-            data = data.exploits || data.data || [];
-        }
-        return { status: "ONLINE", data };
-    } catch (e) {
-        console.log(`[${getTimeStr()}] บอทเกิดข้อผิดพลาดในการดึงข้อมูล: ${e.message}`);
-        return { status: "OFFLINE", data: [] };
-    }
-}
-
-// ── ดึงเวอร์ชัน Roblox ปัจจุบัน ─────────────────────────────────
-async function fetchRobloxVersions() {
-    try {
-        const response = await fetch(VERSION_API_URL, {
-            headers: { "User-Agent": "WEAO-3PService" },
-            signal: AbortSignal.timeout(15000)
-        });
-        if (!response.ok) {
-            console.log(`[${getTimeStr()}] WEAO Version API ตอบกลับ status ${response.status}`);
-            return null;
-        }
-        return await response.json();
-    } catch (e) {
-        console.log(`[${getTimeStr()}] ดึงข้อมูล Roblox Version ผิดพลาด: ${e.message}`);
-        return null;
-    }
-}
-
-function getStatusText(ex) {
-    const updateOk = ex.updateStatus ?? false;
-    const hasIssues = ex.hasIssues ?? false;
-
-    if (!updateOk) return "🔴 Patched";
-    if (hasIssues) return "🟠 Issues";
-    return "🟢 Working";
-}
-
-function categorizeExecutors(exploits) {
-    let categorized = {};
-    for (const cat in CATEGORY_LISTS) categorized[cat] = [];
-
-    const lookup = {};
-    for (const ex of exploits) {
-        const title = ex.title || "";
-        const platform = ex.platform || "";
-        lookup[`${title}|${platform}`] = ex;
-    }
-
-    for (const [category, names] of Object.entries(CATEGORY_LISTS)) {
-        const platform = CATEGORY_PLATFORM[category];
-        for (const name of names) {
-            const ex = lookup[`${name}|${platform}`];
-            if (ex) {
-                const statusStr = getStatusText(ex);
-                categorized[category].push(`**${name}** : ${statusStr}`);
-            } else {
-                categorized[category].push(`**${name}** : ⚪ Not Found`);
-            }
-        }
-    }
-    return categorized;
-}
-
-// ── สร้าง field หมวด Roblox Version ─────────────────────────────
-function buildVersionField(versions) {
-    if (!versions) {
-        return { name: "🧩 Roblox Version Update Tracker", value: "*Unable to fetch version data*", inline: false };
-    }
-
-    const winVer = versions.Windows || "Unknown";
-    const winDate = versions.WindowsDate || "";
-    const macVer = versions.Mac || "Unknown";
-    const macDate = versions.MacDate || "";
-    const andVer = versions.Android || "Unknown";
-    const andDate = versions.AndroidDate || "";
-    const iosVer = versions.iOS || "Unknown";
-    const iosDate = versions.iOSDate || "";
-
-    const lines = [
-        `**Roblox Windows** : \`${winVer}\`\n└ Last Updated: ${winDate}`,
-        `**Roblox Mac** : \`${macVer}\`\n└ Last Updated: ${macDate}`,
-        `**Roblox Android-iOS** : \`Android ${andVer}\` / \`iOS ${iosVer}\`\n└ Android: ${andDate}\n└ iOS: ${iosDate}`
-    ];
-
-    return { name: "🧩 Roblox Version Update Tracker", value: lines.join("\n\n"), inline: false };
-}
-
-function buildEmbed(apiStatus, categories, versions) {
-    const fields = [];
-
-    // ── หมวด Roblox Version ขึ้นก่อนเป็นอันดับแรก ──
-    fields.push(buildVersionField(versions));
-
-    // ── หมวด Exploit ตามเดิม ──
-    for (const [category, items] of Object.entries(categories)) {
-        let valueText = items.length > 0 ? items.join("\n") : "*No data in this category*";
-        if (valueText.length > 1024) {
-            valueText = valueText.substring(0, 1000) + "\n...(truncated)";
-        }
-        fields.push({ name: `💻 ${category}`, value: valueText, inline: false });
-    }
-
-    let embedColor, statusLabel;
-    if (apiStatus === "ONLINE") {
-        embedColor = 65280;
-        statusLabel = "🟢 ONLINE";
-    } else if (apiStatus === "RATELIMIT") {
-        embedColor = 16776960;
-        statusLabel = "🟡 RATE LIMITED";
-    } else {
-        embedColor = 16711680;
-        statusLabel = "🔴 OFFLINE";
-    }
-
-    const payload = {
-        embeds: [
-            {
-                title: "🛡️ WEAO Status by siw",
-                description: `**🌐 WEBSITE WEAO STATUS:** ${statusLabel}\n\n🟢 Working = UPDATE  |  🟠 Issues = WAITING FIX  |  🔴 Patched = DOWN`,
-                color: embedColor,
-                fields: fields,
-                timestamp: new Date().toISOString(),
-                footer: { text: `${FOOTER_TEXT} | Last Updated: ${getTimeStr()}` }
-            }
-        ]
-    };
-    return payload;
-}
-
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-async function monitorLoop() {
-    let messageId = null;
-    const webhookUrlWithWait = WEBHOOK_URL.includes("?wait=true") ? WEBHOOK_URL : `${WEBHOOK_URL}?wait=true`;
+def build_embed(web_status, api_data):
+    # ตั้งค่าสี Embed ตามสถานะเว็บ
+    embed_color = 65280 if web_status == "ONLINE" else 16711680
+    current_time_str = time.strftime('%X')
     
-    await sleep(3000);
-    console.log("=== ระบบดึงข้อมูล Exploit + Roblox Version จาก WEAO API เริ่มทำงาน ===");
-
-    while (true) {
-        const { status: apiStatus, data: exploits } = await fetchExploitData();
-        const versions = await fetchRobloxVersions();
-
-        let categories;
-        if (exploits && exploits.length > 0) {
-            categories = categorizeExecutors(exploits);
-        } else {
-            categories = {};
-            for (const cat in CATEGORY_LISTS) categories[cat] = [];
-        }
-
-        const payload = buildEmbed(apiStatus, categories, versions);
-
-        try {
-            if (!messageId) {
-                // โพสต์ครั้งแรก (POST)
-                const response = await fetch(webhookUrlWithWait, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.status === 200 || response.status === 201) {
-                    const resData = await response.json();
-                    messageId = resData.id;
-                    console.log(`[${getTimeStr()}] สร้างข้อความหลักสำเร็จ (ID: ${messageId})`);
-                } else {
-                    const text = await response.text();
-                    console.log(`[${getTimeStr()}] ส่ง Webhook ไม่สำเร็จ: ${response.status} - ${text}`);
-                }
-            } else {
-                // อัปเดตข้อความเดิม (PATCH)
-                const cleanUrl = WEBHOOK_URL.split('?')[0];
-                const editUrl = `${cleanUrl}/messages/${messageId}`;
-                
-                const response = await fetch(editUrl, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.status === 200) {
-                    console.log(`[${getTimeStr()}] อัปเดตสถานะเรียบร้อย (${apiStatus})`);
-                } else if (response.status === 404) {
-                    messageId = null; // ข้อความอาจจะถูกลบไปแล้ว ให้โพสต์ใหม่รอบหน้า
-                } else {
-                    console.log(`[${getTimeStr()}] แก้ไขข้อความไม่สำเร็จ: ${response.status}`);
-                }
-            }
-        } catch (e) {
-            console.log(`[${getTimeStr()}] Discord Webhook Error: ${e.message}`);
-        }
-
-        await sleep(CHECK_INTERVAL * 1000);
+    embed = {
+        "title": "🛡️ Executor Status by siw",
+        "description": f"🌐 **WEBSITE WEAO STATUS:** {'🟢 ONLINE' if web_status == 'ONLINE' else '🔴 OFFLINE'}\n\n"
+                       f"🟢 Working = UPDATE | 🟠 Issues = WAITING FIX | 🔴 Patched = DOWN",
+        "color": embed_color,
+        "fields": [],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "footer": {"text": f"{FOOTER_TEXT} | อัปเดตล่าสุด: {current_time_str}"}
     }
-}
 
-// ── เริ่มการทำงาน ─────────────────────────────────────────────
-keepAlive();
-monitorLoop();
+    if not api_data:
+        embed["fields"].append({"name": "⚠️ System Warning", "value": "ไม่สามารถดึงข้อมูลจาก API ได้ในขณะนี้", "inline": False})
+        return {"embeds": [embed]}
+
+    # สมมติโครงสร้าง JSON ว่ามีคีย์ 'exploits' ที่เก็บรายชื่อตัวรันทั้งหมด
+    # โค้ดส่วนนี้จะวนลูปตัวรันทั้งหมด (มีตัวใหม่ก็จะถูกเพิ่มอัตโนมัติ)
+    categories = {}
+    
+    exploits_list = api_data.get("exploits", [])
+    
+    for item in exploits_list:
+        name = item.get("name", "Unknown")
+        version = item.get("version", "N/A")
+        price = item.get("price", "Free")
+        status_raw = item.get("status", "").lower()
+        os_type = item.get("os", "Windows") # จัดหมวดหมู่ตาม OS
+        
+        # จัดการข้อมูลสเตตัส
+        if status_raw in ["updated", "working", "active", "online"]:
+            status_icon = "🟢"
+            status_text = "Working"
+        elif status_raw in ["issues", "waiting fix", "maintenance"]:
+            status_icon = "🟠"
+            status_text = "Issues"
+        else:
+            status_icon = "🔴"
+            status_text = "Patched"
+
+        # ดึงข้อมูลเชิงลึก
+        sunc = item.get("sunc", "N/A")
+        unc = item.get("unc", "N/A")
+        decomp = "✅" if item.get("decompiler") else "❌"
+        multi = "✅" if item.get("multi_instance") else "❌"
+        raknet = "✅" if item.get("raknet") else "❌"
+        
+        web_link = item.get("website", "")
+        discord_link = item.get("discord", "")
+        purchase_link = item.get("purchase", "")
+
+        # สร้างข้อความสำหรับตัวรัน 1 ตัว
+        # ใช้รูปแบบ Markdown Links [ชื่อ](ลิ้งก์) เพื่อให้คลิกได้และไม่รก
+        links_str = []
+        if web_link: links_str.append(f"[Website]({web_link})")
+        if discord_link: links_str.append(f"[Discord]({discord_link})")
+        if purchase_link: links_str.append(f"[Purchase]({purchase_link})")
+        links_formatted = " | ".join(links_str) if links_str else "No Links"
+
+        # จัดฟอร์แมตข้อความให้โชว์ทุกอย่าง
+        entry = f"{status_icon} **{name}** `[{version}]` - {price}\n"
+        entry += f"┣ 📊 sUNC: `{sunc}%` | UNC: `{unc}%`\n"
+        entry += f"┣ 🛠️ Decomp: {decomp} | Multi: {multi} | Raknet: {raknet}\n"
+        entry += f"┗ 🔗 {links_formatted}\n"
+
+        if os_type not in categories:
+            categories[os_type] = []
+        categories[os_type].append(entry)
+
+    # เพิ่ม Field ลงใน Embed ตามหมวดหมู่ (Windows, Mac, Android, ฯลฯ)
+    # หมายเหตุ: Discord จำกัดข้อความใน 1 Field ที่ 1024 ตัวอักษร หากตัวรันในหมวดนั้นยาวเกินไป อาจจะต้องเขียนแยก (ในโค้ดนี้รวบยอดให้ก่อน)
+    for os_name, items in categories.items():
+        # ถ้าข้อความยาวเกิน 1000 ตัวอักษร ให้แยก Field (ป้องกัน Webhook Error)
+        chunk_text = ""
+        part = 1
+        for i, text in enumerate(items):
+            if len(chunk_text) + len(text) > 950:
+                embed["fields"].append({
+                    "name": f"💻 {os_name} Script Executor Exploits (Part {part})",
+                    "value": chunk_text,
+                    "inline": False
+                })
+                chunk_text = text + "\n"
+                part += 1
+            else:
+                chunk_text += text + "\n"
+        
+        if chunk_text:
+            title = f"💻 {os_name} Script Executor Exploits" if part == 1 else f"💻 {os_name} Script Executor Exploits (Part {part})"
+            embed["fields"].append({"name": title, "value": chunk_text, "inline": False})
+
+    return {"embeds": [embed]}
+
+def monitor_loop():
+    message_id = None
+    webhook_url_with_wait = WEBHOOK_URL + ("" if "?wait=true" in WEBHOOK_URL else "?wait=true")
+    time.sleep(3)
+    print("=== ระบบดึงข้อมูล API และโชว์รายละเอียดครบจบใน Webhook เริ่มทำงาน ===")
+
+    while True:
+        web_status, api_data = fetch_weao_api()
+        payload = build_embed(web_status, api_data)
+        
+        try:
+            if message_id is None:
+                # ส่งข้อความใหม่
+                response = requests.post(webhook_url_with_wait, json=payload)
+                if response.status_code in [200, 201]:
+                    message_id = response.json().get("id")
+                    print(f"[{time.strftime('%X')}] สร้างข้อความหลักสำเร็จ (ID: {message_id})")
+            else:
+                # อัปเดตข้อความเดิม
+                clean_url = WEBHOOK_URL.split('?')[0]
+                edit_url = f"{clean_url}/messages/{message_id}"
+                response = requests.patch(edit_url, json=payload)
+                
+                if response.status_code == 200:
+                    print(f"[{time.strftime('%X')}] อัปเดตสถานะและข้อมูลเชิงลึกเรียบร้อย")
+                elif response.status_code == 404:
+                    # ถ้าข้อความโดนลบไปแล้ว ให้ส่งใหม่ในรอบหน้า
+                    message_id = None
+        except Exception as e:
+            print(f"Discord Webhook Error: {e}")
+            
+        time.sleep(CHECK_INTERVAL)
+
+if __name__ == "__main__":
+    server_thread = Thread(target=keep_alive)
+    server_thread.start()
+    monitor_loop()
