@@ -8,7 +8,7 @@ from flask import Flask
 # =======================================================
 # CONFIGURATION (ตั้งค่าตรงนี้)
 # =======================================================
-WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_URL_HERE"
+WEBHOOK_URL = "https://discord.com/api/webhooks/1514211987234488401/dT70YrRMx2yVHSfw_Cb6Opf6VqdY8W5nOw5RQSU-qNLoGHO7ZPM5JQsH3Pfj9ei_LgYO"
 API_URL = "https://weao.xyz/api/status" # (ใส่ URL API ของเว็บ weao.xyz ที่ใช้ดึงข้อมูล JSON)
 CHECK_INTERVAL = 30  
 FOOTER_TEXT = "Vereus X Status System"
