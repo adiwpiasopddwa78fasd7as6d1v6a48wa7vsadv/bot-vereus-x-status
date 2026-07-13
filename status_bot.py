@@ -9,7 +9,8 @@ from flask import Flask
 # CONFIGURATION (ตั้งค่าตรงนี้)
 # =======================================================
 WEBHOOK_URL = "https://discord.com/api/webhooks/1514211987234488401/dT70YrRMx2yVHSfw_Cb6Opf6VqdY8W5nOw5RQSU-qNLoGHO7ZPM5JQsH3Pfj9ei_LgYO"
-API_URL = "https://api.weao.xyz/v1/status"  # ตรวจสอบ URL endpoint จาก https://docs.weao.xyz/ อีกครั้ง
+API_EXPLOITS = "https://weao.xyz/api/status/exploits"
+API_VERSIONS = "https://weao.xyz/api/versions/current"
 CHECK_INTERVAL = 25  
 FOOTER_TEXT = "Vereus X Status System"
 # =======================================================
@@ -18,38 +19,41 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "<h1>Vereus X Status System v7 (Pure API) is Active!</h1>", 200
+    return "<h1>Vereus X Status System v8 (Multi-API) is Active!</h1>", 200
 
 def keep_alive():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
 def fetch_weao_api():
-    """ดึงข้อมูลดิบจาก API ของ weao.xyz โดยตรง มั่นใจได้ว่าข้อมูลแม่นยำและไม่บัคจากโครงสร้างเว็บ"""
+    """ยิงรีเควสไปหา API 2 ตัวพร้อมกัน เพื่อดึงสถานะตัวรันและเวอร์ชันเกม"""
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
             'Accept': 'application/json'
         }
-        response = requests.get(API_URL, headers=headers, timeout=12)
-        if response.status_code == 200:
-            return "ONLINE", response.json()
-        return "OFFLINE", None
+        # ยิงดึงข้อมูล
+        res_exploits = requests.get(API_EXPLOITS, headers=headers, timeout=12)
+        res_versions = requests.get(API_VERSIONS, headers=headers, timeout=12)
+        
+        if res_exploits.status_code == 200 and res_versions.status_code == 200:
+            return "ONLINE", res_exploits.json(), res_versions.json()
+        return "OFFLINE", None, None
     except Exception as e:
         print(f"[{time.strftime('%X')}] เชื่อมต่อ API ล้มเหลว: {e}")
-        return "OFFLINE", None
+        return "OFFLINE", None, None
 
 def parse_status(status_raw):
-    """แปลงค่าสถานะจาก API เป็นไอคอนและข้อความตามข้อกำหนด"""
+    """กรองข้อความจาก API เป็นไอคอนดิสคอร์ด"""
     status_str = str(status_raw).lower().strip()
     if status_str in ["updated", "working", "active", "online", "true"]:
         return "🟢 Working"
-    elif status_str in ["issues", "waiting fix", "maintenance", "bugged"]:
+    elif status_str in ["issues", "waiting fix", "maintenance", "bugged", "testing"]:
         return "🟠 Issues"
     else:
         return "🔴 Patched"
 
-def build_embed(web_status, api_data):
+def build_embed(web_status, exploits_data, versions_data):
     embed_color = 65280 if web_status == "ONLINE" else 16711680
     current_time_str = time.strftime('%X')
     
@@ -63,17 +67,18 @@ def build_embed(web_status, api_data):
         "footer": {"text": f"{FOOTER_TEXT} | อัปเดตล่าสุด: {current_time_str}"}
     }
 
-    if web_status == "OFFLINE" or not api_data:
+    if web_status == "OFFLINE" or exploits_data is None:
         embed["fields"].append({"name": "⚠️ System Warning", "value": "ไม่สามารถดึงข้อมูลจาก API ได้ในขณะนี้", "inline": False})
         return {"embeds": [embed]}
 
-    # 1. ส่วนของ Roblox Version Update Tracker
-    roblox = api_data.get("roblox", {})
-    # ตรวจสอบโครงสร้างข้อมูลเวอร์ชัน (รองรับทั้งแบบ Object และแบบ String ตรงๆ)
-    win_v = roblox.get("windows", {}).get("version", "N/A") if isinstance(roblox.get("windows"), dict) else roblox.get("windows", "N/A")
-    mac_v = roblox.get("mac", {}).get("version", "N/A") if isinstance(roblox.get("mac"), dict) else roblox.get("mac", "N/A")
-    and_v = roblox.get("android", {}).get("version", "N/A") if isinstance(roblox.get("android"), dict) else roblox.get("android", "N/A")
-    ios_v = roblox.get("ios", {}).get("version", "N/A") if isinstance(roblox.get("ios"), dict) else roblox.get("ios", "N/A")
+    # 1. จัดการข้อมูลหน้า Roblox Version Update Tracker
+    # (ระบบครอบคลุมกรณี API ส่งมาเป็น Object ซ้อนกัน หรือ String ตรงๆ)
+    v_data = versions_data if isinstance(versions_data, dict) else (versions_data[0] if isinstance(versions_data, list) and versions_data else {})
+    
+    win_v = v_data.get("windows", "N/A") if isinstance(v_data.get("windows"), str) else v_data.get("windows", {}).get("version", "N/A")
+    mac_v = v_data.get("mac", "N/A") if isinstance(v_data.get("mac"), str) else v_data.get("mac", {}).get("version", "N/A")
+    and_v = v_data.get("android", "N/A") if isinstance(v_data.get("android"), str) else v_data.get("android", {}).get("version", "N/A")
+    ios_v = v_data.get("ios", "N/A") if isinstance(v_data.get("ios"), str) else v_data.get("ios", {}).get("version", "N/A")
 
     roblox_tracker_text = (
         f"**Roblox Windows :** `{win_v}`\n"
@@ -82,34 +87,41 @@ def build_embed(web_status, api_data):
     )
     embed["fields"].append({"name": "🧩 Roblox Version Update Tracker", "value": roblox_tracker_text, "inline": False})
 
-    # 2. ส่วนของรายชื่อ Executor (ดึงแบบ Dynamic วนลูปตามที่ API ส่งมาทั้งหมด ตัวใหม่จะขึ้นทันที)
+    # 2. จัดการข้อมูลหน้า Script Executor (จัดเป็นหมวดหมู่ตาม OS อัตโนมัติ)
     categories = {}
-    exploits_list = api_data.get("exploits", api_data.get("executors", []))
+    
+    # รองรับกรณีที่ API ส่งกลับมาเป็น List (Array) โดยตรง หรือส่งเป็น Dictionary
+    exploits_list = exploits_data if isinstance(exploits_data, list) else exploits_data.get("exploits", exploits_data.get("data", []))
 
     for item in exploits_list:
-        name = item.get("name", "Unknown")
+        if not isinstance(item, dict): continue
+        
+        name = item.get("name", item.get("title", "Unknown"))
         version = item.get("version", "N/A")
         price = item.get("price", "Free")
         status_emoji = parse_status(item.get("status", "patched"))
+        
+        # ดึงหมวดหมู่ (ถ้า API ไม่มี OS ระบุให้ จะถือว่าเป็น Windows ไว้ก่อน)
         os_type = item.get("os", item.get("platform", "Windows")).capitalize()
         
-        # ดึงค่าคุณสมบัติต่างๆ
         sunc = item.get("sunc", "N/A")
         unc = item.get("unc", "N/A")
-        decomp = "✅" if item.get("decompiler", False) or item.get("decompiler") == "✅" else "❌"
-        multi = "✅" if item.get("multi_instance", False) or item.get("multi_instance") == "✅" else "❌"
-        raknet = "✅" if item.get("raknet", False) or item.get("raknet") == "❌" else "❌" # เช็คกรณีรับค่ามาตรงๆ
+        
+        # เช็ค True/False จาก JSON
+        decomp = "✅" if item.get("decompiler") in [True, "true", "✅", 1, "yes"] else "❌"
+        multi = "✅" if item.get("multi_instance") in [True, "true", "✅", 1, "yes"] else "❌"
+        raknet = "✅" if item.get("raknet") in [True, "true", "✅", 1, "yes"] else "❌"
         
         note = item.get("note", item.get("message", ""))
         
-        # จัดการ Markdown Links
+        # ดึงลิ้งก์จาก API 
         links = []
         if item.get("website"): links.append(f"[Website]({item['website']})")
         if item.get("discord"): links.append(f"[Discord]({item['discord']})")
         if item.get("purchase"): links.append(f"[Purchase]({item['purchase']})")
         links_formatted = " | ".join(links) if links else "No Links"
 
-        # ประกอบโครงสร้างข้อความรูปแบบ Tree GUI ลงใน Webhook ลิสต์ยาวลงมา
+        # ต่อข้อความแบบ Tree Formatting 
         entry = f"{status_emoji.split()[0]} **{name}** `[{version}]` - {price}\n"
         if note:
             entry += f"┗ 💬 *{note}*\n"
@@ -121,7 +133,7 @@ def build_embed(web_status, api_data):
             categories[os_type] = []
         categories[os_type].append(entry)
 
-    # นำหมวดหมู่ที่จัดกลุ่มเสร็จแล้วยัดลง Embed fields (พร้อมระบบ Chunk ป้องกันข้อความยาวเกินลิมิต Discord)
+    # ส่งหมวดหมู่ลง Embed ของ Webhook ป้องกัน Discord เตือนข้อความยาวเกิน
     for os_name, items in categories.items():
         chunk_text = ""
         part = 1
@@ -147,11 +159,11 @@ def monitor_loop():
     message_id = None
     webhook_url_with_wait = WEBHOOK_URL + ("" if "?wait=true" in WEBHOOK_URL else "?wait=true")
     time.sleep(3)
-    print("=== ระบบดึงข้อมูลจาก Pure API (weao.xyz) เริ่มทำงาน ===")
+    print("=== ระบบดึงข้อมูลจาก Multi-API (weao.xyz) เริ่มทำงาน ===")
 
     while True:
-        web_status, api_data = fetch_weao_api()
-        payload = build_embed(web_status, api_data)
+        web_status, exploits_data, versions_data = fetch_weao_api()
+        payload = build_embed(web_status, exploits_data, versions_data)
         
         try:
             if message_id is None:
@@ -167,7 +179,7 @@ def monitor_loop():
                 if response.status_code == 200:
                     print(f"[{time.strftime('%X')}] อัปเดตข้อมูลโครงสร้าง API เรียบร้อย")
                 elif response.status_code == 404:
-                    message_id = None  # หากข้อความถูกลบ ให้ทำการส่งใหม่
+                    message_id = None  
         except Exception as e:
             print(f"Discord Webhook Error: {e}")
             
